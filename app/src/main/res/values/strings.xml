@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EMSaide</string>
+    
+    <!-- 通用 -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="loading">加载中...</string>
+    <string name="error">错误</string>
+    <string name="success">成功</string>
+    
+    <!-- 主界面 -->
+    <string name="chat_list">聊天列表</string>
+    <string name="settings">设置</string>
+    <string name="add_account">添加邮箱</string>
+    <string name="sync">同步邮件</string>
+    <string name="no_accounts">暂无邮箱账户</string>
+    <string name="tap_to_add">点击添加邮箱账户</string>
+    
+    <!-- 邮箱设置 -->
+    <string name="email_settings">邮箱设置</string>
+    <string name="account_name">账户名称</string>
+    <string name="account_name_hint">例如：工作邮箱、个人邮箱</string>
+    <string name="email_address">邮箱地址</string>
+    <string name="email_address_hint">example@email.com</string>
+    <string name="password">密码</string>
+    <string name="password_hint">邮箱密码或授权码</string>
+    
+    <!-- 服务器设置 -->
+    <string name="server_settings">服务器设置</string>
+    <string name="use_imap">使用 IMAP（否则使用 POP3）</string>
+    <string name="use_ssl">使用 SSL/TLS</string>
+    
+    <string name="pop3_server">POP3 服务器</string>
+    <string name="pop3_server_hint">例如：pop.gmail.com</string>
+    <string name="pop3_port">POP3 端口</string>
+    
+    <string name="imap_server">IMAP服务器</string>
+    <string name="imap_server_hint">例如：imap.gmail.com</string>
+    <string name="imap_port">IMAP 端口</string>
+    
+    <string name="smtp_server">SMTP 服务器</string>
+    <string name="smtp_server_hint">例如：smtp.gmail.com</string>
+    <string name="smtp_port">SMTP 端口</string>
+    
+    <!-- 常用邮箱配置 -->
+    <string name="quick_setup">快速设置</string>
+    <string name="select_provider">选择邮箱服务商</string>
+    <string name="gmail">Gmail</string>
+    <string name="qq_email">QQ 邮箱</string>
+    <string name="netease_163">网易 163 邮箱</string>
+    <string name="netease_126">网易 126 邮箱</string>
+    <string name="outlook">Outlook/Hotmail</string>
+    <string name="yahoo">Yahoo</string>
+    
+    <!-- 聊天界面 -->
+    <string name="send">发送</string>
+    <string name="message_hint">输入消息...</string>
+    <string name="no_messages">暂无消息</string>
+    <string name="syncing">正在同步邮件...</string>
+    <string name="sync_complete">同步完成，收到 %d 封新邮件</string>
+    <string name="sync_error">同步失败：%s</string>
+    
+    <!-- 提示消息 -->
+    <string name="confirm_delete_account">确定要删除此邮箱账户吗？</string>
+    <string name="test_connection">测试连接</string>
+    <string name="connection_success">连接成功</string>
+    <string name="connection_failed">连接失败</string>
+    <string name="please_fill_all_fields">请填写所有必填字段</string>
+    <string name="invalid_email_format">邮箱格式不正确</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="email_providers">
+        <item>选择邮箱服务商...</item>
+        <item>Gmail</item>
+        <item>QQ 邮箱</item>
+        <item>网易 163 邮箱</item>
+        <item>网易 126 邮箱</item>
+        <item>Outlook/Hotmail</item>
+        <item>Yahoo</item>
+        <item>其他（手动配置）</item>
+    </string-array>
+</resources>
