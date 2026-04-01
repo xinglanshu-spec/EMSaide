@@ -3,24 +3,37 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/chatListFragment">
+    app:startDestination="@id/contactListFragment">
 
+    <!-- 联系人列表（主界面） -->
     <fragment
-        android:id="@+id/chatListFragment"
-        android:name="com.example.emsaide.ui.ChatListFragment"
-        android:label="@string/chat_list"
-        tools:layout="@layout/fragment_chat_list">
+        android:id="@+id/contactListFragment"
+        android:name="com.example.emsaide.ui.ContactListFragment"
+        android:label="联系人"
+        tools:layout="@layout/fragment_contact_list">
         
         <action
-            android:id="@+id/action_chatList_to_emailSettings"
-            app:destination="@id/emailSettingsFragment" />
+            android:id="@+id/action_contactList_to_addContact"
+            app:destination="@id/addContactFragment" />
         
         <action
-            android:id="@+id/action_chatList_to_chatDetail"
+            android:id="@+id/action_contactList_to_chatDetail"
             app:destination="@id/chatDetailFragment" />
+        
+        <action
+            android:id="@+id/action_contactList_to_emailSettings"
+            app:destination="@id/emailSettingsFragment" />
             
     </fragment>
 
+    <!-- 添加联系人 -->
+    <fragment
+        android:id="@+id/addContactFragment"
+        android:name="com.example.emsaide.ui.AddContactFragment"
+        android:label="添加联系人"
+        tools:layout="@layout/fragment_add_contact" />
+
+    <!-- 邮箱设置 -->
     <fragment
         android:id="@+id/emailSettingsFragment"
         android:name="com.example.emsaide.ui.EmailSettingsFragment"
@@ -34,16 +47,27 @@
             
     </fragment>
 
+    <!-- 聊天详情 -->
     <fragment
         android:id="@+id/chatDetailFragment"
         android:name="com.example.emsaide.ui.ChatDetailFragment"
-        android:label="@string/settings"
+        android:label="聊天"
         tools:layout="@layout/fragment_chat_detail">
         
         <argument
-            android:name="accountId"
+            android:name="contactId"
             app:argType="long"
             android:defaultValue="-1L" />
+        
+        <argument
+            android:name="contactName"
+            app:argType="string"
+            android:defaultValue='""' />
+        
+        <argument
+            android:name="contactEmail"
+            app:argType="string"
+            android:defaultValue='""' />
             
     </fragment>
 

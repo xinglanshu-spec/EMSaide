@@ -29,33 +29,33 @@ public interface ChatMessageDao {
     @Delete
     void delete(ChatMessage message);
     
-    @Query("SELECT * FROM chat_messages WHERE accountId = :accountId ORDER BY timestamp ASC")
-    List<ChatMessage> getMessagesByAccountId(long accountId);
+    @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId ORDER BY timestamp ASC")
+    List<ChatMessage> getMessagesByConversationId(long conversationId);
     
-    @Query("SELECT * FROM chat_messages WHERE accountId = :accountId ORDER BY timestamp ASC")
-    LiveData<List<ChatMessage>> getMessagesByAccountIdLiveData(long accountId);
+    @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId ORDER BY timestamp ASC")
+    LiveData<List<ChatMessage>> getMessagesByConversationIdLiveData(long conversationId);
     
     @Query("SELECT * FROM chat_messages WHERE id = :id")
     ChatMessage getMessageById(long id);
     
-    @Query("SELECT * FROM chat_messages WHERE accountId = :accountId AND isRead = 0 ORDER BY timestamp ASC")
-    List<ChatMessage> getUnreadMessages(long accountId);
+    @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId AND isRead = 0 ORDER BY timestamp ASC")
+    List<ChatMessage> getUnreadMessages(long conversationId);
     
-    @Query("UPDATE chat_messages SET isRead = 1 WHERE accountId = :accountId")
-    void markAllAsRead(long accountId);
+    @Query("UPDATE chat_messages SET isRead = 1 WHERE conversationId = :conversationId")
+    void markAllAsRead(long conversationId);
     
     @Query("UPDATE chat_messages SET isRead = 1 WHERE id = :id")
     void markAsRead(long id);
     
-    @Query("DELETE FROM chat_messages WHERE accountId = :accountId")
-    void deleteAllForAccount(long accountId);
+    @Query("DELETE FROM chat_messages WHERE conversationId = :conversationId")
+    void deleteAllForConversation(long conversationId);
     
     @Query("DELETE FROM chat_messages WHERE id = :id")
     void deleteById(long id);
     
-    @Query("SELECT COUNT(*) FROM chat_messages WHERE accountId = :accountId AND isRead = 0")
-    int getUnreadCount(long accountId);
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE conversationId = :conversationId AND isRead = 0")
+    int getUnreadCount(long conversationId);
     
-    @Query("SELECT * FROM chat_messages WHERE accountId = :accountId ORDER BY timestamp DESC LIMIT 1")
-    ChatMessage getLatestMessage(long accountId);
+    @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId ORDER BY timestamp DESC LIMIT 1")
+    ChatMessage getLatestMessage(long conversationId);
 }

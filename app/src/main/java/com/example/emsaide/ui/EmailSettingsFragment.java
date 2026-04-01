@@ -2,6 +2,7 @@ package com.example.emsaide.ui;
 
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,6 +30,8 @@ import java.util.concurrent.Executors;
  * 邮箱设置界面
  */
 public class EmailSettingsFragment extends Fragment {
+    
+    private static final String TAG = "EmailSettingsFragment";
     
     private Spinner providerSpinner;
     private TextInputEditText accountNameInput;
@@ -85,7 +88,12 @@ public class EmailSettingsFragment extends Fragment {
         // 检查是否是编辑模式
         if (getArguments() != null && getArguments().containsKey("accountId")) {
             editAccountId = getArguments().getLong("accountId");
-            loadAccountData();
+            // 只有有效的 ID 才进入编辑模式
+            if (editAccountId > 0) {
+                loadAccountData();
+            } else {
+                editAccountId = null; // 无效 ID，视为新建模式
+            }
         }
         
         // 设置监听器
@@ -265,18 +273,33 @@ public class EmailSettingsFragment extends Fragment {
         }
         
         executor.execute(() -> {
-            if (editAccountId != null) {
-                account.setId(editAccountId);
-                repository.updateAccount(account);
-            } else {
-                repository.insertAccount(account);
-            }
-            
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    Toast.makeText(getContext(), R.string.success, Toast.LENGTH_SHORT).show();
-                    Navigation.findNavController(requireView()).popBackStack();
-                });
+            try {
+                long id;
+                if (editAccountId != null) {
+                    account.setId(editAccountId);
+                    repository.updateAccount(account);
+                    id = editAccountId;
+                    Log.d(TAG, "updateAccount: id = " + id + ", email = " + account.getEmail());
+                } else {
+                    id = repository.insertAccount(account);
+                    // insertAccount 内部已经有日志
+                }
+                
+                Log.d(TAG, "saveAccount completed: id = " + id);
+                
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        Toast.makeText(getContext(), R.string.success, Toast.LENGTH_SHORT).show();
+                        Navigation.findNavController(requireView()).popBackStack();
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Save account error", e);
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        Toast.makeText(getContext(), "保存失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
             }
         });
     }

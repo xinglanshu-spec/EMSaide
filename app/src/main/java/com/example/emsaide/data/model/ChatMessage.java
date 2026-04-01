@@ -1,19 +1,32 @@
 package com.example.emsaide.data.model;
 
 import androidx.room.Entity;
+import androidx.room.ForeignKey;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 /**
  * 聊天消息实体类
- * 存储与每个邮箱的聊天消息
+ * 存储与每个联系人的聊天消息
  */
-@Entity(tableName = "chat_messages")
+@Entity(tableName = "chat_messages",
+    foreignKeys = {
+        @ForeignKey(entity = Conversation.class,
+            parentColumns = "id",
+            childColumns = "conversationId",
+            onDelete = ForeignKey.CASCADE)
+    },
+    indices = {@Index("conversationId")}
+)
 public class ChatMessage {
     
     @PrimaryKey(autoGenerate = true)
     private long id;
     
-    /** 关联的邮箱账户 ID */
+    /** 关联的对话 ID */
+    private long conversationId;
+    
+    /** 关联的邮箱账户 ID（用于发送） */
     private long accountId;
     
     /** 消息类型：RECEIVED(接收), SENT(发送), SYSTEM(系统) */
@@ -57,6 +70,14 @@ public class ChatMessage {
 
     public void setId(long id) {
         this.id = id;
+    }
+
+    public long getConversationId() {
+        return conversationId;
+    }
+
+    public void setConversationId(long conversationId) {
+        this.conversationId = conversationId;
     }
 
     public long getAccountId() {

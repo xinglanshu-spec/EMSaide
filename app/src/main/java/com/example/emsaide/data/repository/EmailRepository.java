@@ -45,7 +45,30 @@ public class EmailRepository {
     // ==================== 邮箱账户相关 ====================
     
     public long insertAccount(EmailAccount account) {
-        return accountDao.insert(account);
+        long id = accountDao.insert(account);
+        Log.d(TAG, "insertAccount: id = " + id + ", email = " + account.getEmail());
+        return id;
+    }
+    
+    public void insertAccountAsync(EmailAccount account, InsertCallback callback) {
+        executor.execute(() -> {
+            try {
+                long id = accountDao.insert(account);
+                if (callback != null) {
+                    callback.onSuccess(id);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Insert account error", e);
+                if (callback != null) {
+                    callback.onError(e.getMessage());
+                }
+            }
+        });
+    }
+    
+    public interface InsertCallback {
+        void onSuccess(long id);
+        void onError(String error);
     }
     
     public void updateAccount(EmailAccount account) {
@@ -53,19 +76,19 @@ public class EmailRepository {
     }
     
     public void deleteAccount(EmailAccount account) {
-        executor.execute(() -> {
-            // 同时删除关联的聊天消息
-            messageDao.deleteAllForAccount(account.getId());
-            accountDao.delete(account);
-        });
+        // TODO: 需要更新为按对话删除
+        // 暂时保留，等待后续完善
+        accountDao.delete(account);
+    }
+    
+    public List<EmailAccount> getAllAccounts() {
+        List<EmailAccount> accounts = accountDao.getAllAccounts();
+        Log.d(TAG, "getAllAccounts: count = " + (accounts != null ? accounts.size() : "null"));
+        return accounts;
     }
     
     public LiveData<List<EmailAccount>> getAllAccountsLiveData() {
         return accountDao.getAllAccountsLiveData();
-    }
-    
-    public List<EmailAccount> getAllAccounts() {
-        return accountDao.getAllAccounts();
     }
     
     public EmailAccount getAccountById(long id) {
@@ -86,20 +109,20 @@ public class EmailRepository {
         executor.execute(() -> messageDao.insertAll(messages));
     }
     
-    public LiveData<List<ChatMessage>> getMessagesByAccountIdLiveData(long accountId) {
-        return messageDao.getMessagesByAccountIdLiveData(accountId);
+    public LiveData<List<ChatMessage>> getMessagesByConversationIdLiveData(long conversationId) {
+        return messageDao.getMessagesByConversationIdLiveData(conversationId);
     }
     
     public List<ChatMessage> getMessagesByAccountId(long accountId) {
-        return messageDao.getMessagesByAccountId(accountId);
+        return messageDao.getMessagesByConversationId(accountId);
     }
     
-    public void markAllAsRead(long accountId) {
-        executor.execute(() -> messageDao.markAllAsRead(accountId));
+    public void markAllAsRead(long conversationId) {
+        executor.execute(() -> messageDao.markAllAsRead(conversationId));
     }
     
-    public int getUnreadCount(long accountId) {
-        return messageDao.getUnreadCount(accountId);
+    public int getUnreadCount(long conversationId) {
+        return messageDao.getUnreadCount(conversationId);
     }
     
     // ==================== 邮件同步相关 ====================

@@ -20,6 +20,10 @@
     <string name="no_accounts">暂无邮箱账户</string>
     <string name="tap_to_add">点击添加邮箱账户</string>
     
+    <!-- Drawer -->
+    <string name="open_drawer">打开菜单</string>
+    <string name="close_drawer">关闭菜单</string>
+    
     <!-- 邮箱设置 -->
     <string name="email_settings">邮箱设置</string>
     <string name="account_name">账户名称</string>

@@ -2,6 +2,7 @@ package com.example.emsaide.ui;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,29 +10,34 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.emsaide.R;
+import com.example.emsaide.data.database.AppDatabase;
 import com.example.emsaide.data.model.EmailAccount;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 聊天列表界面
  */
 public class ChatListFragment extends Fragment {
     
+    private static final String TAG = "ChatListFragment";
+    
     private RecyclerView chatRecyclerView;
     private View emptyView;
     private FloatingActionButton addAccountFab;
     
     private ChatListAdapter adapter;
-    private ChatListViewModel viewModel;
+    private AppDatabase database;
+    private ExecutorService executor;
     
     private OnChatSelectedListener listener;
     
@@ -60,30 +66,70 @@ public class ChatListFragment extends Fragment {
         emptyView = view.findViewById(R.id.emptyView);
         addAccountFab = view.findViewById(R.id.addAccountFab);
         
+        // 初始化和显示空视图
+        emptyView.setVisibility(View.VISIBLE);
+        chatRecyclerView.setVisibility(View.GONE);
+        
+        // 初始化数据库和执行器
+        database = AppDatabase.getInstance(requireContext());
+        executor = Executors.newSingleThreadExecutor();
+        
         // 初始化 RecyclerView
         adapter = new ChatListAdapter(new ArrayList<>(), this::onAccountClick);
         chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         chatRecyclerView.setAdapter(adapter);
         
-        // 初始化 ViewModel
-        viewModel = new ViewModelProvider(this).get(ChatListViewModel.class);
+        // 加载账户列表
+        loadAccounts();
         
-        // 观察数据
-        viewModel.getAccounts().observe(getViewLifecycleOwner(), accounts -> {
-            if (accounts != null && !accounts.isEmpty()) {
-                adapter.setAccounts(accounts);
-                chatRecyclerView.setVisibility(View.VISIBLE);
-                emptyView.setVisibility(View.GONE);
-            } else {
-                chatRecyclerView.setVisibility(View.GONE);
-                emptyView.setVisibility(View.VISIBLE);
+        // 添加按钮点击事件 - 暂时禁用，因为主界面已改为联系人列表
+        // 将来可以通过侧边栏菜单访问邮箱账户管理
+        addAccountFab.setVisibility(View.GONE);
+    }
+    
+    private void loadAccounts() {
+        executor.execute(() -> {
+            try {
+                List<EmailAccount> accounts = database.emailAccountDao().getAllAccounts();
+                Log.d(TAG, "Loaded " + accounts.size() + " accounts");
+                
+                // 打印所有账户信息用于调试
+                for (EmailAccount account : accounts) {
+                    Log.d(TAG, "Account: " + account.getEmail() + " - " + account.getAccountName());
+                }
+                
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        Log.d(TAG, "Updating UI with " + accounts.size() + " accounts");
+                        if (accounts != null && !accounts.isEmpty()) {
+                            adapter.setAccounts(accounts);
+                            chatRecyclerView.setVisibility(View.VISIBLE);
+                            emptyView.setVisibility(View.GONE);
+                            Log.d(TAG, "Showing RecyclerView");
+                        } else {
+                            chatRecyclerView.setVisibility(View.GONE);
+                            emptyView.setVisibility(View.VISIBLE);
+                            Log.d(TAG, "Showing EmptyView");
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading accounts", e);
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        chatRecyclerView.setVisibility(View.GONE);
+                        emptyView.setVisibility(View.VISIBLE);
+                    });
+                }
             }
         });
-        
-        // 添加按钮点击事件
-        addAccountFab.setOnClickListener(v -> {
-            Navigation.findNavController(v).navigate(R.id.action_chatList_to_emailSettings);
-        });
+    }
+    
+    @Override
+    public void onResume() {
+        super.onResume();
+        // 返回时刷新列表
+        loadAccounts();
     }
     
     private void onAccountClick(EmailAccount account) {

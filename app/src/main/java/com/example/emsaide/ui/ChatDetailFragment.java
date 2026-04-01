@@ -5,7 +5,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -30,12 +29,18 @@ public class ChatDetailFragment extends Fragment {
     
     private RecyclerView messageRecyclerView;
     private View emptyMessageView;
+    private EditText recipientInput;
+    private EditText subjectInput;
     private EditText messageInput;
     private MaterialButton sendButton;
     
     private MessageListAdapter adapter;
     private ChatDetailViewModel viewModel;
-    private long accountId;
+    
+    // 联系人信息
+    private long contactId;
+    private String contactName;
+    private String contactEmail;
     
     @Nullable
     @Override
@@ -48,12 +53,21 @@ public class ChatDetailFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         messageRecyclerView = view.findViewById(R.id.messageRecyclerView);
         emptyMessageView = view.findViewById(R.id.emptyMessageView);
+        recipientInput = view.findViewById(R.id.recipientInput);
+        subjectInput = view.findViewById(R.id.subjectInput);
         messageInput = view.findViewById(R.id.messageInput);
         sendButton = view.findViewById(R.id.sendButton);
         
-        // 获取账户 ID
+        // 获取参数
         if (getArguments() != null) {
-            accountId = getArguments().getLong("accountId", -1);
+            contactId = getArguments().getLong("contactId", -1);
+            contactName = getArguments().getString("contactName", "");
+            contactEmail = getArguments().getString("contactEmail", "");
+            
+            // 自动填充收件人
+            if (!contactEmail.isEmpty()) {
+                recipientInput.setText(contactEmail);
+            }
         }
         
         // 初始化 RecyclerView
@@ -64,8 +78,10 @@ public class ChatDetailFragment extends Fragment {
         // 初始化 ViewModel
         viewModel = new ViewModelProvider(this).get(ChatDetailViewModel.class);
         
-        // 加载消息
-        viewModel.loadMessages(accountId);
+        // 加载消息（使用联系人 ID）
+        if (contactId != -1) {
+            viewModel.loadMessagesForContact(contactId);
+        }
         
         // 观察消息数据
         viewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
@@ -96,15 +112,20 @@ public class ChatDetailFragment extends Fragment {
     }
     
     private void sendMessage() {
+        String to = recipientInput.getText().toString().trim();
+        String subject = subjectInput.getText().toString().trim();
         String content = messageInput.getText().toString().trim();
-        if (content.isEmpty()) {
+        
+        if (to.isEmpty() || content.isEmpty()) {
+            Snackbar.make(requireView(), "请输入收件人和消息内容", Snackbar.LENGTH_SHORT).show();
             return;
         }
         
-        viewModel.sendEmail(content, new ChatDetailViewModel.SendCallback() {
+        viewModel.sendEmail(to, subject, content, new ChatDetailViewModel.SendCallback() {
             @Override
             public void onSuccess() {
                 messageInput.setText("");
+                subjectInput.setText("");
                 Snackbar.make(requireView(), "邮件已发送", Snackbar.LENGTH_SHORT).show();
             }
             
