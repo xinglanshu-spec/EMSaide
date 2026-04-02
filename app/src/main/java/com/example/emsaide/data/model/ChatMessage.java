@@ -9,15 +9,7 @@ import androidx.room.PrimaryKey;
  * 聊天消息实体类
  * 存储与每个联系人的聊天消息
  */
-@Entity(tableName = "chat_messages",
-    foreignKeys = {
-        @ForeignKey(entity = Conversation.class,
-            parentColumns = "id",
-            childColumns = "conversationId",
-            onDelete = ForeignKey.CASCADE)
-    },
-    indices = {@Index("conversationId")}
-)
+@Entity(tableName = "chat_messages")
 public class ChatMessage {
     
     @PrimaryKey(autoGenerate = true)

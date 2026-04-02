@@ -17,14 +17,14 @@ import com.example.emsaide.data.model.EmailAccount;
 
 /**
  * 应用数据库
- * 版本 2: 添加联系人和对话
+ * 版本 3: 移除 ChatMessage 的外键约束
  */
 @Database(entities = {
     EmailAccount.class, 
     Contact.class,
     Conversation.class,
     ChatMessage.class
-}, version = 2, exportSchema = false)
+}, version = 3, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
     
     private static volatile AppDatabase INSTANCE;
