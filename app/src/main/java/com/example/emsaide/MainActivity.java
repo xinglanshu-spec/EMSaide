@@ -50,17 +50,26 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     .setDrawerLayout(drawerLayout)
                     .build();
             
-            // NavigationUI 会自动管理：顶层页面显示汉堡菜单并打开抽屉，
-            // 非顶层页面显示返回箭头并返回上一页
+            // NavigationUI 管理导航图标和点击行为：
+            // 顶层页面显示汉堡菜单并打开抽屉，非顶层页面显示返回箭头并返回
             NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         }
         
-        // 抽屉开关指示器 - 仅用于动画效果，不绑定 toolbar 避免拦截点击
+        // 抽屉动画 - 不传 toolbar 避免拦截导航按钮点击
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
             this, drawerLayout,
             R.string.open_drawer, R.string.close_drawer
         );
         drawerLayout.addDrawerListener(toggle);
+    }
+    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            // NavigationUI 已配置：顶层页面打开抽屉，非顶层页面返回上一页
+            return NavigationUI.navigateUp(navController, appBarConfiguration) || super.onOptionsItemSelected(item);
+        }
+        return super.onOptionsItemSelected(item);
     }
     
     @Override
