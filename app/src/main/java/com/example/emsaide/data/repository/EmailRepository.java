@@ -139,10 +139,14 @@ public class EmailRepository {
     public void syncEmails(EmailAccount account, SyncCallback callback) {
         executor.execute(() -> {
             try {
+                Log.d(TAG, "syncEmails: start syncing for account " + account.getEmail());
+                
                 EmailService emailService = new EmailService(account);
                 
                 // 接收邮件并删除
                 Message[] messages = emailService.receiveAndDeleteEmails();
+                
+                Log.d(TAG, "syncEmails: received " + (messages != null ? messages.length : 0) + " messages");
                 
                 if (messages != null && messages.length > 0) {
                     List<ChatMessage> chatMessages = new ArrayList<>();
@@ -164,12 +168,15 @@ public class EmailRepository {
                             // 根据发件人邮箱查找联系人，设置 conversationId
                             // 从发件人字符串中提取邮箱地址
                             String senderEmail = extractEmailFromAddress(from);
+                            Log.d(TAG, "syncEmails: senderEmail = " + senderEmail);
+                            
                             if (senderEmail != null) {
                                 // 清理邮箱地址，去除可能的空格
                                 senderEmail = senderEmail.trim().toLowerCase();
                                 
                                 // 首先尝试精确匹配
                                 Contact contact = contactDao.getContactByEmail(senderEmail);
+                                Log.d(TAG, "syncEmails: contact found by exact match = " + (contact != null));
                                 
                                 // 如果精确匹配失败，尝试模糊匹配（不区分大小写）
                                 if (contact == null) {
@@ -180,10 +187,12 @@ public class EmailRepository {
                                             break;
                                         }
                                     }
+                                    Log.d(TAG, "syncEmails: contact found by fuzzy match = " + (contact != null));
                                 }
                                 
                                 if (contact != null) {
                                     chatMessage.setConversationId(contact.getId());
+                                    Log.d(TAG, "syncEmails: set conversationId = " + contact.getId());
                                     // 更新联系人的最后聊天时间
                                     contact.setLastChatTime(System.currentTimeMillis());
                                     contactDao.update(contact);
@@ -200,6 +209,7 @@ public class EmailRepository {
                                     newContact.setLastChatTime(System.currentTimeMillis());
                                     long contactId = contactDao.insert(newContact);
                                     chatMessage.setConversationId(contactId);
+                                    Log.d(TAG, "syncEmails: created new contact with id = " + contactId);
                                 }
                             }
                             
@@ -237,16 +247,27 @@ public class EmailRepository {
                     
                     // 批量插入到数据库
                     if (!chatMessages.isEmpty()) {
-                        messageDao.insertAll(chatMessages);
+                        List<Long> ids = messageDao.insertAll(chatMessages);
+                        Log.d(TAG, "syncEmails: inserted " + ids.size() + " messages to database");
+                        
+                        // 打印插入的消息详情
+                        for (int i = 0; i < chatMessages.size(); i++) {
+                            ChatMessage cm = chatMessages.get(i);
+                            Log.d(TAG, "syncEmails: message[" + i + "] conversationId=" + cm.getConversationId() + 
+                                ", type=" + cm.getType() + ", sender=" + cm.getSender());
+                        }
                     }
                     
                     // 更新最后同步时间
                     accountDao.updateLastSyncTime(account.getId(), System.currentTimeMillis());
                     
+                    Log.d(TAG, "syncEmails: sync completed successfully");
+                    
                     if (callback != null) {
                         callback.onSuccess(chatMessages.size());
                     }
                 } else {
+                    Log.d(TAG, "syncEmails: no new messages");
                     if (callback != null) {
                         callback.onSuccess(0);
                     }
