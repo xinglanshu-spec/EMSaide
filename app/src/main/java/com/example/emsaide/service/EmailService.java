@@ -267,4 +267,164 @@ public class EmailService {
     public Session getSession() {
         return session;
     }
+    
+    /**
+     * 同步邮件并提取完整信息（在连接关闭前）
+     * @return 包含邮件信息的数组，每个元素是一个 Object[]，包含：
+     *         [0] Message, [1] from, [2] subject, [3] content, [4] sentDate, [5] messageId
+     */
+    public Object[][] syncAndExtractEmails() throws MessagingException {
+        Store store = null;
+        Folder folder = null;
+        
+        try {
+            if (account.isUseImap()) {
+                store = session.getStore("imap");
+                store.connect(account.getImapServer(), account.getImapPort(),
+                        account.getEmail(), account.getPassword());
+                
+                folder = store.getFolder("INBOX");
+                folder.open(Folder.READ_ONLY);
+                
+                Message[] messages = folder.getMessages();
+                FetchProfile fp = new FetchProfile();
+                fp.add(FetchProfile.Item.ENVELOPE);
+                fp.add(FetchProfile.Item.CONTENT_INFO);
+                folder.fetch(messages, fp);
+                
+                return extractMessagesInfo(messages);
+            } else {
+                // POP3 模式 - 获取最近 50 封邮件
+                store = session.getStore("pop3");
+                store.connect(account.getPop3Server(), account.getPop3Port(),
+                        account.getEmail(), account.getPassword());
+                
+                folder = store.getFolder("INBOX");
+                folder.open(Folder.READ_ONLY);
+                
+                int totalMessages = folder.getMessageCount();
+                if (totalMessages <= 0) {
+                    return new Object[0][];
+                }
+                
+                // 只获取最近的 50 封
+                int maxFetch = 50;
+                int start = Math.max(1, totalMessages - maxFetch + 1);
+                Message[] messages = folder.getMessages(start, totalMessages);
+                
+                FetchProfile fp = new FetchProfile();
+                fp.add(FetchProfile.Item.ENVELOPE);
+                fp.add(FetchProfile.Item.CONTENT_INFO);
+                folder.fetch(messages, fp);
+                
+                return extractMessagesInfo(messages);
+            }
+        } finally {
+            if (folder != null && folder.isOpen()) {
+                folder.close(false);
+            }
+            if (store != null && store.isConnected()) {
+                store.close();
+            }
+        }
+    }
+    
+    /**
+     * 从 Message 数组中提取信息
+     */
+    private Object[][] extractMessagesInfo(Message[] messages) throws MessagingException {
+        Object[][] result = new Object[messages.length][];
+        
+        for (int i = 0; i < messages.length; i++) {
+            Message msg = messages[i];
+            Object[] info = new Object[6];
+            
+            info[0] = msg; // Message 对象本身
+            
+            // 发件人
+            try {
+                String from = "";
+                if (msg.getFrom() != null && msg.getFrom().length > 0) {
+                    from = msg.getFrom()[0].toString();
+                }
+                info[1] = from;
+            } catch (Exception e) {
+                info[1] = "";
+            }
+            
+            // 主题
+            try {
+                String subject = "";
+                if (msg.getSubject() != null) {
+                    subject = javax.mail.internet.MimeUtility.decodeText(msg.getSubject());
+                }
+                info[2] = subject;
+            } catch (Exception e) {
+                info[2] = "";
+            }
+            
+            // 内容
+            try {
+                String content = getEmailContent(msg);
+                info[3] = content;
+            } catch (Exception e) {
+                info[3] = "";
+            }
+            
+            // 发送日期
+            try {
+                java.util.Date sentDate = msg.getSentDate();
+                info[4] = sentDate != null ? sentDate.getTime() : System.currentTimeMillis();
+            } catch (Exception e) {
+                info[4] = System.currentTimeMillis();
+            }
+            
+            // Message-ID
+            try {
+                String messageId = msg.getHeader("Message-ID") != null ? 
+                    msg.getHeader("Message-ID")[0] : "";
+                info[5] = messageId;
+            } catch (Exception e) {
+                info[5] = "";
+            }
+            
+            result[i] = info;
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 获取邮件内容
+     */
+    private String getEmailContent(Message msg) throws Exception {
+        Object content = msg.getContent();
+        
+        if (content == null) {
+            return "";
+        }
+        
+        if (content instanceof String) {
+            return (String) content;
+        }
+        
+        if (content instanceof javax.mail.Multipart) {
+            javax.mail.Multipart multipart = (javax.mail.Multipart) content;
+            StringBuilder sb = new StringBuilder();
+            
+            for (int i = 0; i < multipart.getCount(); i++) {
+                javax.mail.BodyPart part = multipart.getBodyPart(i);
+                if (part.isMimeType("text/plain")) {
+                    sb.append(part.getContent().toString());
+                    break;
+                } else if (part.isMimeType("text/html")) {
+                    sb.append(part.getContent().toString());
+                }
+            }
+            
+            return sb.toString();
+        }
+        
+        return content.toString();
+    }
 }

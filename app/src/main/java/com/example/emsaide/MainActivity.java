@@ -51,10 +51,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (navHostFragment != null) {
             navController = navHostFragment.getNavController();
             
-            // 配置 AppBar
+            // 配置 AppBar - 只在顶层页面显示抽屉菜单
             appBarConfiguration = new AppBarConfiguration.Builder(
                     R.id.contactListFragment)
-                    .setOpenableLayout(drawerLayout)
+                    .setDrawerLayout(drawerLayout)
                     .build();
             
             NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);

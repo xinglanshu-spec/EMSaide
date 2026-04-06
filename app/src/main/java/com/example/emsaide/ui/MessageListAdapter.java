@@ -81,29 +81,50 @@ public class MessageListAdapter extends RecyclerView.Adapter<MessageListAdapter.
             ChatMessage.MessageType type = message.getType();
             
             if (type == ChatMessage.MessageType.SENT) {
-                // 发送的消息 - 靠右对齐，绿色背景
-                messageContainer.setBackgroundColor(
-                    ContextCompat.getColor(itemView.getContext(), R.color.message_sent_bg));
+                // 发送的消息 - 靠右对齐，绿色气泡
                 FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) 
                     messageContainer.getLayoutParams();
                 params.gravity = Gravity.END;
                 messageContainer.setLayoutParams(params);
+                
+                // 设置绿色气泡背景
+                messageContainer.setBackgroundResource(R.drawable.message_bubble_sent);
+                
+                // 设置文字颜色为白色
+                subjectText.setTextColor(Color.WHITE);
+                senderText.setTextColor(Color.WHITE);
+                contentText.setTextColor(Color.WHITE);
+                timeText.setTextColor(Color.parseColor("#CCFFFFFF"));
+                
             } else if (type == ChatMessage.MessageType.RECEIVED) {
-                // 接收的消息 - 靠左对齐，白色背景
-                messageContainer.setBackgroundColor(
-                    ContextCompat.getColor(itemView.getContext(), R.color.message_received_bg));
+                // 接收的消息 - 靠左对齐，灰色气泡
                 FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) 
                     messageContainer.getLayoutParams();
                 params.gravity = Gravity.START;
                 messageContainer.setLayoutParams(params);
+                
+                // 设置灰色气泡背景
+                messageContainer.setBackgroundResource(R.drawable.message_bubble_received);
+                
+                // 设置文字颜色为深色
+                subjectText.setTextColor(ContextCompat.getColor(itemView.getContext(), R.color.primary_dark));
+                senderText.setTextColor(Color.parseColor("#666666"));
+                contentText.setTextColor(Color.BLACK);
+                timeText.setTextColor(Color.parseColor("#99000000"));
+                
             } else if (type == ChatMessage.MessageType.SYSTEM) {
                 // 系统消息 - 居中，黄色背景
-                messageContainer.setBackgroundColor(
-                    ContextCompat.getColor(itemView.getContext(), R.color.message_system_bg));
                 FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) 
                     messageContainer.getLayoutParams();
                 params.gravity = Gravity.CENTER;
                 messageContainer.setLayoutParams(params);
+                messageContainer.setBackgroundColor(
+                    ContextCompat.getColor(itemView.getContext(), R.color.message_system_bg));
+                
+                subjectText.setTextColor(Color.BLACK);
+                senderText.setTextColor(Color.BLACK);
+                contentText.setTextColor(Color.BLACK);
+                timeText.setTextColor(Color.BLACK);
             }
             
             // 设置主题（如果有）
@@ -119,7 +140,21 @@ public class MessageListAdapter extends RecyclerView.Adapter<MessageListAdapter.
             if (type == ChatMessage.MessageType.RECEIVED) {
                 String sender = message.getSender();
                 if (sender != null && !sender.isEmpty()) {
-                    senderText.setText("来自：" + sender);
+                    // 只显示邮箱名称部分，不显示完整邮箱
+                    String displayName = sender;
+                    if (sender.contains("<")) {
+                        displayName = sender.substring(0, sender.indexOf("<")).trim();
+                    }
+                    if (displayName.isEmpty()) {
+                        // 如果没有名称，显示邮箱地址的用户名部分
+                        String email = extractEmailFromAddress(sender);
+                        if (email != null && email.contains("@")) {
+                            displayName = email.substring(0, email.indexOf("@"));
+                        } else {
+                            displayName = email != null ? email : sender;
+                        }
+                    }
+                    senderText.setText(displayName);
                     senderText.setVisibility(View.VISIBLE);
                 } else {
                     senderText.setVisibility(View.GONE);
@@ -134,6 +169,21 @@ public class MessageListAdapter extends RecyclerView.Adapter<MessageListAdapter.
             // 设置时间
             Date date = new Date(message.getTimestamp());
             timeText.setText(dateFormat.format(date));
+        }
+        
+        private String extractEmailFromAddress(String address) {
+            if (address == null || address.isEmpty()) {
+                return null;
+            }
+            
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
+            java.util.regex.Matcher matcher = pattern.matcher(address);
+            
+            if (matcher.find()) {
+                return matcher.group();
+            }
+            
+            return null;
         }
     }
 }

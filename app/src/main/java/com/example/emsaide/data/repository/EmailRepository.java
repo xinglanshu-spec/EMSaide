@@ -143,43 +143,36 @@ public class EmailRepository {
                 
                 EmailService emailService = new EmailService(account);
                 
-                // 接收邮件（不删除，增量同步）
-                Message[] messages = emailService.receiveAllEmails();
+                // 同步邮件并提取信息（在连接关闭前）
+                Object[][] emailsInfo = emailService.syncAndExtractEmails();
                 
-                Log.d(TAG, "syncEmails: received " + (messages != null ? messages.length : 0) + " messages");
+                Log.d(TAG, "syncEmails: received " + (emailsInfo != null ? emailsInfo.length : 0) + " messages");
                 
-                if (messages != null && messages.length > 0) {
+                if (emailsInfo != null && emailsInfo.length > 0) {
                     List<ChatMessage> chatMessages = new ArrayList<>();
                     
-                    for (Message msg : messages) {
+                    for (Object[] info : emailsInfo) {
                         try {
-                            // 获取邮件 ID，用于去重
-                            String emailMessageId = "";
-                            try {
-                                String[] headers = msg.getHeader("Message-ID");
-                                emailMessageId = (headers != null && headers.length > 0) ? headers[0] : "";
-                            } catch (Exception e) {
-                                Log.e(TAG, "Get message id error", e);
-                            }
-                            
-                            // 跳过已同步的邮件
-                            if (!emailMessageId.isEmpty() && messageDao.existsByEmailMessageId(emailMessageId) > 0) {
-                                Log.d(TAG, "syncEmails: skipping duplicate message " + emailMessageId);
-                                continue;
-                            }
-                            
                             ChatMessage chatMessage = new ChatMessage();
                             chatMessage.setAccountId(account.getId());
                             chatMessage.setType(ChatMessage.MessageType.RECEIVED);
-                            chatMessage.setEmailMessageId(emailMessageId);
                             
-                            // 获取发件人
-                            String from = "";
-                            if (msg.getFrom() != null && msg.getFrom().length > 0) {
-                                from = msg.getFrom()[0].toString();
-                            }
+                            // 获取已提取的信息
+                            String from = (String) info[1];
+                            String subject = (String) info[2];
+                            String content = (String) info[3];
+                            long timestamp = (Long) info[4];
+                            String messageId = (String) info[5];
+                            
                             chatMessage.setSender(from);
                             chatMessage.setReceiver(account.getEmail());
+                            chatMessage.setEmailMessageId(messageId);
+                            
+                            // 检查是否已存在（去重）
+                            if (!messageId.isEmpty() && messageDao.existsByEmailMessageId(messageId) > 0) {
+                                Log.d(TAG, "syncEmails: skipping duplicate message " + messageId);
+                                continue;
+                            }
                             
                             // 根据发件人邮箱查找联系人，设置 conversationId
                             String senderEmail = extractEmailFromAddress(from);
@@ -188,10 +181,9 @@ public class EmailRepository {
                             if (senderEmail != null) {
                                 senderEmail = senderEmail.trim().toLowerCase();
                                 
-                                // 首先尝试精确匹配
                                 Contact contact = contactDao.getContactByEmail(senderEmail);
+                                Log.d(TAG, "syncEmails: contact found by exact match = " + (contact != null));
                                 
-                                // 精确匹配失败，尝试模糊匹配
                                 if (contact == null) {
                                     List<Contact> allContacts = contactDao.getAllContacts();
                                     if (allContacts != null) {
@@ -202,15 +194,15 @@ public class EmailRepository {
                                             }
                                         }
                                     }
+                                    Log.d(TAG, "syncEmails: contact found by fuzzy match = " + (contact != null));
                                 }
                                 
                                 if (contact != null) {
                                     chatMessage.setConversationId(contact.getId());
-                                    // 更新联系人的最后聊天时间
+                                    Log.d(TAG, "syncEmails: set conversationId = " + contact.getId());
                                     contact.setLastChatTime(System.currentTimeMillis());
                                     contactDao.update(contact);
                                 } else {
-                                    // 创建新联系人
                                     Contact newContact = new Contact();
                                     newContact.setEmail(senderEmail);
                                     String senderName = from;
@@ -225,21 +217,9 @@ public class EmailRepository {
                                 }
                             }
                             
-                            // 获取主题
-                            String subject = "";
-                            if (msg.getSubject() != null) {
-                                subject = MimeUtility.decodeText(msg.getSubject());
-                            }
                             chatMessage.setSubject(subject);
-                            
-                            // 获取内容
-                            String content = getEmailContent(msg);
                             chatMessage.setContent(content);
-                            
-                            // 获取时间
-                            Date sentDate = msg.getSentDate();
-                            chatMessage.setTimestamp(sentDate != null ? sentDate.getTime() : System.currentTimeMillis());
-                            
+                            chatMessage.setTimestamp(timestamp);
                             chatMessage.setRead(false);
                             chatMessages.add(chatMessage);
                             
@@ -253,7 +233,6 @@ public class EmailRepository {
                         List<Long> ids = messageDao.insertAll(chatMessages);
                         Log.d(TAG, "syncEmails: inserted " + ids.size() + " messages to database");
                         
-                        // 打印插入的消息详情
                         for (int i = 0; i < chatMessages.size(); i++) {
                             ChatMessage cm = chatMessages.get(i);
                             Log.d(TAG, "syncEmails: message[" + i + "] conversationId=" + cm.getConversationId() + 
@@ -261,7 +240,6 @@ public class EmailRepository {
                         }
                     }
                     
-                    // 更新最后同步时间
                     accountDao.updateLastSyncTime(account.getId(), System.currentTimeMillis());
                     
                     Log.d(TAG, "syncEmails: sync completed successfully");
