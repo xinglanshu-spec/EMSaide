@@ -6,9 +6,11 @@ import android.util.Log;
 import androidx.lifecycle.LiveData;
 
 import com.example.emsaide.data.dao.ChatMessageDao;
+import com.example.emsaide.data.dao.ContactDao;
 import com.example.emsaide.data.dao.EmailAccountDao;
 import com.example.emsaide.data.database.AppDatabase;
 import com.example.emsaide.data.model.ChatMessage;
+import com.example.emsaide.data.model.Contact;
 import com.example.emsaide.data.model.EmailAccount;
 import com.example.emsaide.service.EmailService;
 import com.sun.mail.pop3.POP3Folder;
@@ -32,12 +34,14 @@ public class EmailRepository {
     private static final String TAG = "EmailRepository";
     
     private final EmailAccountDao accountDao;
+    private final ContactDao contactDao;
     private final ChatMessageDao messageDao;
     private final ExecutorService executor;
     
     public EmailRepository(Context context) {
         AppDatabase database = AppDatabase.getInstance(context);
         accountDao = database.emailAccountDao();
+        contactDao = database.contactDao();
         messageDao = database.chatMessageDao();
         executor = Executors.newSingleThreadExecutor();
     }
@@ -157,6 +161,48 @@ public class EmailRepository {
                             chatMessage.setSender(from);
                             chatMessage.setReceiver(account.getEmail());
                             
+                            // 根据发件人邮箱查找联系人，设置 conversationId
+                            // 从发件人字符串中提取邮箱地址
+                            String senderEmail = extractEmailFromAddress(from);
+                            if (senderEmail != null) {
+                                // 清理邮箱地址，去除可能的空格
+                                senderEmail = senderEmail.trim().toLowerCase();
+                                
+                                // 首先尝试精确匹配
+                                Contact contact = contactDao.getContactByEmail(senderEmail);
+                                
+                                // 如果精确匹配失败，尝试模糊匹配（不区分大小写）
+                                if (contact == null) {
+                                    List<Contact> allContacts = contactDao.getAllContacts();
+                                    for (Contact c : allContacts) {
+                                        if (c.getEmail() != null && c.getEmail().trim().toLowerCase().equals(senderEmail)) {
+                                            contact = c;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (contact != null) {
+                                    chatMessage.setConversationId(contact.getId());
+                                    // 更新联系人的最后聊天时间
+                                    contact.setLastChatTime(System.currentTimeMillis());
+                                    contactDao.update(contact);
+                                } else {
+                                    // 如果找不到联系人，创建一个新的联系人
+                                    Contact newContact = new Contact();
+                                    newContact.setEmail(senderEmail);
+                                    // 从发件人字符串中提取名称
+                                    String senderName = from;
+                                    if (from.contains("<")) {
+                                        senderName = from.substring(0, from.indexOf("<")).trim();
+                                    }
+                                    newContact.setName(senderName.isEmpty() ? senderEmail : senderName);
+                                    newContact.setLastChatTime(System.currentTimeMillis());
+                                    long contactId = contactDao.insert(newContact);
+                                    chatMessage.setConversationId(contactId);
+                                }
+                            }
+                            
                             // 获取主题
                             String subject = "";
                             if (msg.getSubject() != null) {
@@ -216,6 +262,25 @@ public class EmailRepository {
     }
     
     /**
+     * 从发件人字符串中提取邮箱地址
+     */
+    private String extractEmailFromAddress(String address) {
+        if (address == null || address.isEmpty()) {
+            return null;
+        }
+        
+        // 匹配邮箱地址的正则表达式
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
+        java.util.regex.Matcher matcher = pattern.matcher(address);
+        
+        if (matcher.find()) {
+            return matcher.group();
+        }
+        
+        return null;
+    }
+    
+    /**
      * 获取邮件内容
      */
     private String getEmailContent(Message msg) throws Exception {
@@ -256,7 +321,7 @@ public class EmailRepository {
     /**
      * 发送邮件
      */
-    public void sendEmail(EmailAccount account, String to, String subject, String content, 
+    public void sendEmail(EmailAccount account, String to, String subject, String content, long contactId, 
                          SendCallback callback) {
         executor.execute(() -> {
             try {
@@ -266,6 +331,7 @@ public class EmailRepository {
                 // 保存发送记录到数据库
                 ChatMessage chatMessage = new ChatMessage();
                 chatMessage.setAccountId(account.getId());
+                chatMessage.setConversationId(contactId);
                 chatMessage.setType(ChatMessage.MessageType.SENT);
                 chatMessage.setSender(account.getEmail());
                 chatMessage.setReceiver(to);

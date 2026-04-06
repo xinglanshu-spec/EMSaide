@@ -32,10 +32,13 @@ public class ChatDetailViewModel extends AndroidViewModel {
         repository = new EmailRepository(application);
     }
     
+    private long contactId = -1;
+    
     /**
      * 为联系人加载消息（使用第一个邮箱账户）
      */
     public void loadMessagesForContact(long contactId) {
+        this.contactId = contactId;
         // 在后台线程获取邮箱账户
         new Thread(() -> {
             List<EmailAccount> accounts = repository.getAllAccounts();
@@ -149,7 +152,7 @@ public class ChatDetailViewModel extends AndroidViewModel {
             subject = "聊天消息";
         }
         
-        repository.sendEmail(account, to, subject, content, 
+        repository.sendEmail(account, to, subject, content, contactId, 
             new EmailRepository.SendCallback() {
                 @Override
                 public void onSuccess() {
@@ -176,7 +179,7 @@ public class ChatDetailViewModel extends AndroidViewModel {
      * 标记所有消息为已读
      */
     public void markAllAsRead() {
-        repository.markAllAsRead(accountId);
+        repository.markAllAsRead(contactId);
     }
     
     public interface SyncCallback {

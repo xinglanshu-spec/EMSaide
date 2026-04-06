@@ -81,6 +81,9 @@ public class ChatDetailFragment extends Fragment {
         // 加载消息（使用联系人 ID）
         if (contactId != -1) {
             viewModel.loadMessagesForContact(contactId);
+            
+            // 自动同步新邮件
+            autoSyncEmails();
         }
         
         // 观察消息数据
@@ -141,23 +144,40 @@ public class ChatDetailFragment extends Fragment {
                 .setTitle(R.string.sync)
                 .setMessage("确定要同步新邮件吗？")
                 .setPositiveButton(R.string.ok, (dialog, which) -> {
-                    viewModel.syncEmails(new ChatDetailViewModel.SyncCallback() {
-                        @Override
-                        public void onSuccess(int count) {
-                            Snackbar.make(requireView(), 
-                                getString(R.string.sync_complete, count), 
-                                Snackbar.LENGTH_SHORT).show();
-                        }
-                        
-                        @Override
-                        public void onError(String error) {
-                            Snackbar.make(requireView(), 
-                                getString(R.string.sync_error, error), 
-                                Snackbar.LENGTH_LONG).show();
-                        }
-                    });
+                    performSync();
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
+    }
+    
+    /**
+     * 自动同步邮件（进入聊天界面时调用）
+     */
+    private void autoSyncEmails() {
+        // 静默同步，不显示对话框
+        performSync();
+    }
+    
+    /**
+     * 执行同步操作
+     */
+    private void performSync() {
+        viewModel.syncEmails(new ChatDetailViewModel.SyncCallback() {
+            @Override
+            public void onSuccess(int count) {
+                if (count > 0) {
+                    Snackbar.make(requireView(), 
+                        getString(R.string.sync_complete, count), 
+                        Snackbar.LENGTH_SHORT).show();
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                // 自动同步时不显示错误提示，避免打扰用户
+                // 如果是手动同步，可以显示错误
+                android.util.Log.e("ChatDetailFragment", "Sync error: " + error);
+            }
+        });
     }
 }
