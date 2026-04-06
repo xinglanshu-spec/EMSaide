@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navController = navHostFragment.getNavController();
             
             // 配置 AppBar
-            ap pBarConfiguration = new AppBarConfiguration.Builder(
+            appBarConfiguration = new AppBarConfiguration.Builder(
                     R.id.contactListFragment)
                     .setOpenableLayout(drawerLayout)
                     .build();
