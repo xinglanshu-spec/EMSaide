@@ -143,8 +143,8 @@ public class EmailRepository {
                 
                 EmailService emailService = new EmailService(account);
                 
-                // 接收邮件并删除
-                Message[] messages = emailService.receiveAndDeleteEmails();
+                // 接收邮件（不删除，增量同步）
+                Message[] messages = emailService.receiveAllEmails();
                 
                 Log.d(TAG, "syncEmails: received " + (messages != null ? messages.length : 0) + " messages");
                 
@@ -153,9 +153,25 @@ public class EmailRepository {
                     
                     for (Message msg : messages) {
                         try {
+                            // 获取邮件 ID，用于去重
+                            String emailMessageId = "";
+                            try {
+                                String[] headers = msg.getHeader("Message-ID");
+                                emailMessageId = (headers != null && headers.length > 0) ? headers[0] : "";
+                            } catch (Exception e) {
+                                Log.e(TAG, "Get message id error", e);
+                            }
+                            
+                            // 跳过已同步的邮件
+                            if (!emailMessageId.isEmpty() && messageDao.existsByEmailMessageId(emailMessageId) > 0) {
+                                Log.d(TAG, "syncEmails: skipping duplicate message " + emailMessageId);
+                                continue;
+                            }
+                            
                             ChatMessage chatMessage = new ChatMessage();
                             chatMessage.setAccountId(account.getId());
                             chatMessage.setType(ChatMessage.MessageType.RECEIVED);
+                            chatMessage.setEmailMessageId(emailMessageId);
                             
                             // 获取发件人
                             String from = "";
@@ -166,41 +182,37 @@ public class EmailRepository {
                             chatMessage.setReceiver(account.getEmail());
                             
                             // 根据发件人邮箱查找联系人，设置 conversationId
-                            // 从发件人字符串中提取邮箱地址
                             String senderEmail = extractEmailFromAddress(from);
                             Log.d(TAG, "syncEmails: senderEmail = " + senderEmail);
                             
                             if (senderEmail != null) {
-                                // 清理邮箱地址，去除可能的空格
                                 senderEmail = senderEmail.trim().toLowerCase();
                                 
                                 // 首先尝试精确匹配
                                 Contact contact = contactDao.getContactByEmail(senderEmail);
-                                Log.d(TAG, "syncEmails: contact found by exact match = " + (contact != null));
                                 
-                                // 如果精确匹配失败，尝试模糊匹配（不区分大小写）
+                                // 精确匹配失败，尝试模糊匹配
                                 if (contact == null) {
                                     List<Contact> allContacts = contactDao.getAllContacts();
-                                    for (Contact c : allContacts) {
-                                        if (c.getEmail() != null && c.getEmail().trim().toLowerCase().equals(senderEmail)) {
-                                            contact = c;
-                                            break;
+                                    if (allContacts != null) {
+                                        for (Contact c : allContacts) {
+                                            if (c.getEmail() != null && c.getEmail().trim().toLowerCase().equals(senderEmail)) {
+                                                contact = c;
+                                                break;
+                                            }
                                         }
                                     }
-                                    Log.d(TAG, "syncEmails: contact found by fuzzy match = " + (contact != null));
                                 }
                                 
                                 if (contact != null) {
                                     chatMessage.setConversationId(contact.getId());
-                                    Log.d(TAG, "syncEmails: set conversationId = " + contact.getId());
                                     // 更新联系人的最后聊天时间
                                     contact.setLastChatTime(System.currentTimeMillis());
                                     contactDao.update(contact);
                                 } else {
-                                    // 如果找不到联系人，创建一个新的联系人
+                                    // 创建新联系人
                                     Contact newContact = new Contact();
                                     newContact.setEmail(senderEmail);
-                                    // 从发件人字符串中提取名称
                                     String senderName = from;
                                     if (from.contains("<")) {
                                         senderName = from.substring(0, from.indexOf("<")).trim();
@@ -227,15 +239,6 @@ public class EmailRepository {
                             // 获取时间
                             Date sentDate = msg.getSentDate();
                             chatMessage.setTimestamp(sentDate != null ? sentDate.getTime() : System.currentTimeMillis());
-                            
-                            // 获取邮件 ID
-                            try {
-                                String messageId = msg.getHeader("Message-ID") != null ? 
-                                    msg.getHeader("Message-ID")[0] : "";
-                                chatMessage.setEmailMessageId(messageId);
-                            } catch (Exception e) {
-                                Log.e(TAG, "Get message id error", e);
-                            }
                             
                             chatMessage.setRead(false);
                             chatMessages.add(chatMessage);
@@ -302,11 +305,17 @@ public class EmailRepository {
     }
     
     /**
-     * 获取邮件内容
+     * 获取邮件内容（递归处理 multipart，优先获取文本部分）
      */
     private String getEmailContent(Message msg) throws Exception {
         Object content = msg.getContent();
-        
+        return extractTextPart(content);
+    }
+    
+    /**
+     * 从邮件内容中提取文本，优先返回 text/plain
+     */
+    private String extractTextPart(Object content) throws Exception {
         if (content == null) {
             return "";
         }
@@ -315,25 +324,53 @@ public class EmailRepository {
             return (String) content;
         }
         
-        // 如果是 multipart 类型（包含附件等）
         if (content instanceof javax.mail.Multipart) {
             javax.mail.Multipart multipart = (javax.mail.Multipart) content;
-            StringBuilder sb = new StringBuilder();
+            String htmlContent = null;
+            StringBuilder textContent = new StringBuilder();
             
             for (int i = 0; i < multipart.getCount(); i++) {
                 javax.mail.BodyPart bodyPart = multipart.getBodyPart(i);
                 String disposition = bodyPart.getDisposition();
                 
-                // 只处理内联文本部分，跳过附件
-                if (disposition == null || !disposition.equalsIgnoreCase(javax.mail.Part.ATTACHMENT)) {
+                // 跳过附件
+                if (disposition != null && disposition.equalsIgnoreCase(javax.mail.Part.ATTACHMENT)) {
+                    continue;
+                }
+                
+                String contentType = bodyPart.getContentType();
+                if (contentType != null && contentType.toLowerCase().contains("multipart")) {
+                    // 递归处理嵌套 multipart
+                    String nested = extractTextPart(bodyPart.getContent());
+                    if (!nested.isEmpty()) {
+                        if (contentType.toLowerCase().contains("text/html")) {
+                            htmlContent = nested;
+                        } else {
+                            textContent.append(nested);
+                        }
+                    }
+                } else if (contentType != null && contentType.toLowerCase().contains("text/html")) {
+                    // 先缓存 HTML，优先用纯文本
                     Object partContent = bodyPart.getContent();
                     if (partContent instanceof String) {
-                        sb.append(partContent.toString());
+                        htmlContent = (String) partContent;
+                    }
+                } else {
+                    // 纯文本
+                    Object partContent = bodyPart.getContent();
+                    if (partContent instanceof String) {
+                        textContent.append(partContent.toString());
                     }
                 }
             }
             
-            return sb.toString();
+            // 优先返回纯文本，没有纯文本则返回 HTML
+            if (textContent.length() > 0) {
+                return textContent.toString();
+            }
+            if (htmlContent != null) {
+                return htmlContent;
+            }
         }
         
         return content.toString();

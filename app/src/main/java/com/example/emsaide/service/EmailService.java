@@ -164,56 +164,59 @@ public class EmailService {
     }
     
     /**
-     * 接收邮件并删除（POP3）
+     * 接收所有邮件（不删除）
      * @return 邮件消息数组
      */
-    public Message[] receiveAndDeleteEmails() throws MessagingException {
+    public Message[] receiveAllEmails() throws MessagingException {
         Store store = null;
         Folder folder = null;
         
         try {
             if (account.isUseImap()) {
-                // IMAP 模式下，移动到已删除文件夹
                 store = session.getStore("imap");
                 store.connect(account.getImapServer(), account.getImapPort(),
                         account.getEmail(), account.getPassword());
                 
                 folder = store.getFolder("INBOX");
-                folder.open(Folder.READ_WRITE);
+                folder.open(Folder.READ_ONLY);
                 
                 Message[] messages = folder.getMessages();
-                
-                // 标记为删除
-                for (Message msg : messages) {
-                    msg.setFlag(javax.mail.Flags.Flag.DELETED, true);
-                }
-                
-                folder.expunge(); // 真正删除
+                FetchProfile fp = new FetchProfile();
+                fp.add(FetchProfile.Item.ENVELOPE);
+                fp.add(FetchProfile.Item.CONTENT_INFO);
+                folder.fetch(messages, fp);
                 
                 return messages;
-                
             } else {
-                // POP3 模式
+                // POP3 模式 - 获取最近 50 封邮件，避免每次都拉全部
                 store = session.getStore("pop3");
                 store.connect(account.getPop3Server(), account.getPop3Port(),
                         account.getEmail(), account.getPassword());
                 
                 folder = store.getFolder("INBOX");
-                folder.open(Folder.READ_WRITE);
+                folder.open(Folder.READ_ONLY);
                 
-                Message[] messages = folder.getMessages();
-                
-                // 标记为删除
-                for (Message msg : messages) {
-                    msg.setFlag(javax.mail.Flags.Flag.DELETED, true);
+                int totalMessages = folder.getMessageCount();
+                if (totalMessages <= 0) {
+                    return new Message[0];
                 }
                 
-                return messages;
+                // 只获取最近的 50 封
+                int maxFetch = 50;
+                int start = Math.max(1, totalMessages - maxFetch + 1);
+                int count = totalMessages - start + 1;
+                Message[] messages = folder.getMessages(start, totalMessages);
                 
+                FetchProfile fp = new FetchProfile();
+                fp.add(FetchProfile.Item.ENVELOPE);
+                fp.add(FetchProfile.Item.CONTENT_INFO);
+                folder.fetch(messages, fp);
+                
+                return messages;
             }
         } finally {
             if (folder != null && folder.isOpen()) {
-                folder.close(true); // true 表示删除已标记的邮件
+                folder.close(false);
             }
             if (store != null && store.isConnected()) {
                 store.close();

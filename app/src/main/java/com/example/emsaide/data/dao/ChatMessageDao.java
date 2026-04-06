@@ -58,4 +58,7 @@ public interface ChatMessageDao {
     
     @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId ORDER BY timestamp DESC LIMIT 1")
     ChatMessage getLatestMessage(long conversationId);
+    
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE emailMessageId = :emailMessageId")
+    int existsByEmailMessageId(String emailMessageId);
 }
