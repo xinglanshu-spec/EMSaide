@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.navigation.NavController;
+import androidx.navigation.NavDestination;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
@@ -37,28 +38,29 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         NavigationView navigationView = findViewById(R.id.navigationView);
         navigationView.setNavigationItemSelectedListener(this);
         
-        // 设置抽屉开关指示器
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-            this, drawerLayout, toolbar,
-            R.string.open_drawer, R.string.close_drawer
-        );
-        drawerLayout.addDrawerListener(toggle);
-        toggle.syncState();
-        
         // 获取 NavController
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment);
         if (navHostFragment != null) {
             navController = navHostFragment.getNavController();
             
-            // 配置 AppBar - 只在顶层页面显示抽屉菜单
+            // 配置 AppBar - 顶层页面显示抽屉按钮，非顶层页面显示返回按钮
             appBarConfiguration = new AppBarConfiguration.Builder(
                     R.id.contactListFragment)
                     .setDrawerLayout(drawerLayout)
                     .build();
             
+            // NavigationUI 会自动管理：顶层页面显示汉堡菜单并打开抽屉，
+            // 非顶层页面显示返回箭头并返回上一页
             NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         }
+        
+        // 抽屉开关指示器 - 仅用于动画效果，不绑定 toolbar 避免拦截点击
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+            this, drawerLayout,
+            R.string.open_drawer, R.string.close_drawer
+        );
+        drawerLayout.addDrawerListener(toggle);
     }
     
     @Override
@@ -80,6 +82,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return true;
     }
     
+
     @Override
     public boolean onSupportNavigateUp() {
         if (navController != null) {

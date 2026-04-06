@@ -36,6 +36,7 @@ public class ChatDetailFragment extends Fragment {
     
     private MessageListAdapter adapter;
     private ChatDetailViewModel viewModel;
+    private boolean isFirstLoad = true;
     
     // 联系人信息
     private long contactId;
@@ -93,8 +94,11 @@ public class ChatDetailFragment extends Fragment {
                 messageRecyclerView.setVisibility(View.VISIBLE);
                 emptyMessageView.setVisibility(View.GONE);
                 
-                // 滚动到底部
-                messageRecyclerView.scrollToPosition(messages.size() - 1);
+                // 仅在首次加载时自动滚到底部，后续更新不强制滚动
+                if (isFirstLoad) {
+                    isFirstLoad = false;
+                    messageRecyclerView.scrollToPosition(messages.size() - 1);
+                }
                 
                 // 标记为已读
                 viewModel.markAllAsRead();
