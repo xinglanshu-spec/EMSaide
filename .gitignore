@@ -12,4 +12,14 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+*.apk
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+captures/
+intermediates/
+app/debug/
+app/release/

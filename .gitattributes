@@ -1,9 +1,12 @@
 # 统一文本文件行尾为 LF（跨平台友好）
 * text=auto eol=lf
 
-# 显式指定需 LF 的文件（关键！）
-*.sh *.gradlew eol=lf
-*.bat *.cmd eol=crlf
+# 显式指定需 CRLF 的文件
+*.bat eol=crlf
+*.cmd eol=crlf
 
 # 二进制文件标记
-*.png *.jpg *.ico *.apk binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.apk binary
